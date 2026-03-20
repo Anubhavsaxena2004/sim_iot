@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>🚗 Live IoT Data</h2>
+<pre id="data"></pre>
+
+<script>
+async function fetchData() {
+  const res = await fetch("https://your-app.onrender.com/api/get");
+  const data = await res.json();
+
+  document.getElementById("data").innerText =
+    JSON.stringify(data, null, 2);
+}
+
+setInterval(fetchData, 2000);
+</script>
+
+</body>
+</html>
