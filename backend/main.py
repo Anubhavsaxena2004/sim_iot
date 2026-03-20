@@ -1,7 +1,16 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 app = FastAPI()
+
+# Allow frontend to access API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 latest_data = {
     "message": "No data yet"
@@ -11,7 +20,7 @@ latest_data = {
 def home():
     return {"status": "running"}
 
-# Arduino sends data
+# ESP32 + SIM7600X sends data via GET
 @app.get("/api/data")
 def receive_data(
     lat: str = None,
@@ -25,6 +34,16 @@ def receive_data(
 ):
     global latest_data
 
+    # Accident detection
+    accident = False
+    if ax:
+        try:
+            if abs(float(ax)) > 15000:
+                accident = True
+                print("🚨 ACCIDENT DETECTED")
+        except:
+            pass
+
     latest_data = {
         "timestamp": datetime.now().isoformat(),
         "gps": {
@@ -33,8 +52,9 @@ def receive_data(
         },
         "mpu6050": {
             "accel": {"ax": ax, "ay": ay, "az": az},
-            "gyro": {"gx": gx, "gy": gy, "gz": gz}
+            "gyro":  {"gx": gx, "gy": gy, "gz": gz}
         },
+        "accident_detected": accident,   # ← frontend uses this
         "sim": {
             "network": "4G",
             "status": "connected"
@@ -42,14 +62,9 @@ def receive_data(
     }
 
     print("📡 Received:", latest_data)
-
-    # 🚨 simple alert
-    if ax and abs(int(ax)) > 15000:
-        print("🚨 ACCIDENT DETECTED")
-
     return {"success": True}
 
-# frontend fetch
+# Frontend fetches this
 @app.get("/api/get")
 def get_data():
     return latest_data

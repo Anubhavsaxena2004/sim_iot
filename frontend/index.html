@@ -1,21 +1,372 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accident Detection Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #fff;
+    }
+
+    header {
+      background: #1a1a2e;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 2px solid #e94560;
+    }
+
+    header h1 {
+      font-size: 1.3rem;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00ff88;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    /* Accident Banner */
+    #accident-banner {
+      grid-column: 1 / -1;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      transition: all 0.3s;
+      background: #1e3a2f;
+      border: 2px solid #00ff88;
+      color: #00ff88;
+    }
+
+    #accident-banner.accident {
+      background: #3a1e1e;
+      border-color: #ff4444;
+      color: #ff4444;
+      animation: blink 0.5s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #2a2a4a;
+    }
+
+    .card h2 {
+      font-size: 0.85rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    /* Map */
+    #map {
+      grid-column: 1 / -1;
+      height: 350px;
+      border-radius: 12px;
+      border: 1px solid #2a2a4a;
+      overflow: hidden;
+    }
+
+    /* GPS Values */
+    .gps-value {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #2a2a4a;
+    }
+
+    .gps-value:last-child {
+      border-bottom: none;
+    }
+
+    .gps-label {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .gps-num {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #00ccff;
+    }
+
+    /* Accel Values */
+    .accel-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .accel-box {
+      flex: 1;
+      background: #0f0f1a;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .accel-box .axis {
+      color: #888;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+    }
+
+    .accel-box .val {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
+    .accel-box.x .val {
+      color: #ff6b6b;
+    }
+
+    .accel-box.y .val {
+      color: #ffd93d;
+    }
+
+    .accel-box.z .val {
+      color: #6bcb77;
+    }
+
+    /* Progress bar for accel magnitude */
+    .magnitude-bar {
+      margin-top: 14px;
+    }
+
+    .magnitude-bar label {
+      font-size: 0.8rem;
+      color: #888;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .bar-bg {
+      background: #0f0f1a;
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #00ff88, #ffd93d, #ff4444);
+      transition: width 0.4s;
+    }
+
+    /* Timestamp */
+    #timestamp {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #555;
+      font-size: 0.8rem;
+      padding-bottom: 8px;
+    }
+  </style>
+</head>
+
 <body>
 
-<h2>🚗 Live IoT Data</h2>
-<pre id="data"></pre>
+  <header>
+    <div class="dot"></div>
+    <h1>🚗 Accident Detection System — Live Dashboard</h1>
+  </header>
 
-<script>
-async function fetchData() {
-  const res = await fetch("https://your-app.onrender.com/api/get");
-  const data = await res.json();
+  <div class="container">
 
-  document.getElementById("data").innerText =
-    JSON.stringify(data, null, 2);
-}
+    <!-- Accident Banner -->
+    <div id="accident-banner">✅ Normal — No Accident Detected</div>
 
-setInterval(fetchData, 2000);
-</script>
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- GPS Card -->
+    <div class="card">
+      <h2>📍 GPS Location</h2>
+      <div class="gps-value">
+        <span class="gps-label">Latitude</span>
+        <span class="gps-num" id="lat">--</span>
+      </div>
+      <div class="gps-value">
+        <span class="gps-label">Longitude</span>
+        <span class="gps-num" id="lon">--</span>
+      </div>
+      <div class="gps-value">
+        <span class="gps-label">Network</span>
+        <span class="gps-num" id="network" style="color:#00ff88">--</span>
+      </div>
+      <div class="gps-value">
+        <span class="gps-label">SIM Status</span>
+        <span class="gps-num" id="simstatus" style="color:#00ff88">--</span>
+      </div>
+    </div>
+
+    <!-- Accelerometer Card -->
+    <div class="card">
+      <h2>📡 MPU6050 — Accelerometer</h2>
+      <div class="accel-row">
+        <div class="accel-box x">
+          <div class="axis">X Axis</div>
+          <div class="val" id="ax">--</div>
+        </div>
+        <div class="accel-box y">
+          <div class="axis">Y Axis</div>
+          <div class="val" id="ay">--</div>
+        </div>
+        <div class="accel-box z">
+          <div class="axis">Z Axis</div>
+          <div class="val" id="az">--</div>
+        </div>
+      </div>
+      <div class="magnitude-bar">
+        <label>
+          <span>Impact Magnitude</span>
+          <span id="mag-val">0</span>
+        </label>
+        <div class="bar-bg">
+          <div class="bar-fill" id="mag-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timestamp -->
+    <div id="timestamp">Last updated: --</div>
+
+  </div>
+
+  <script>
+    const API = "https://sim-iot.onrender.com/api/get";
+
+    // Init map
+    const map = L.map('map').setView([26.8467, 80.9462], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker = null;
+
+    function updateMap(lat, lon) {
+      if (!lat || !lon || lat === "null" || lon === "null") return;
+      const pos = [parseFloat(lat), parseFloat(lon)];
+      if (marker) {
+        marker.setLatLng(pos);
+      } else {
+        marker = L.marker(pos).addTo(map).bindPopup("📍 Vehicle Location");
+      }
+      map.setView(pos, 15);
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch(API);
+        const data = await res.json();
+
+        if (data.message) return; // No data yet
+
+        // GPS
+        const lat = data.gps?.latitude;
+        const lon = data.gps?.longitude;
+        document.getElementById("lat").textContent = lat || "--";
+        document.getElementById("lon").textContent = lon || "--";
+        document.getElementById("network").textContent = data.sim?.network || "--";
+        document.getElementById("simstatus").textContent = data.sim?.status || "--";
+        updateMap(lat, lon);
+
+        // Accel
+        const ax = data.mpu6050?.accel?.ax || 0;
+        const ay = data.mpu6050?.accel?.ay || 0;
+        const az = data.mpu6050?.accel?.az || 0;
+        document.getElementById("ax").textContent = ax;
+        document.getElementById("ay").textContent = ay;
+        document.getElementById("az").textContent = az;
+
+        // Magnitude bar (max 20000 = 100%)
+        const mag = Math.sqrt(ax * ax + ay * ay + az * az);
+        const pct = Math.min((mag / 20000) * 100, 100).toFixed(1);
+        document.getElementById("mag-val").textContent = Math.round(mag);
+        document.getElementById("mag-bar").style.width = pct + "%";
+
+        // Accident banner
+        const banner = document.getElementById("accident-banner");
+        if (data.accident_detected) {
+          banner.textContent = "🚨 ACCIDENT DETECTED!";
+          banner.classList.add("accident");
+        } else {
+          banner.textContent = "✅ Normal — No Accident Detected";
+          banner.classList.remove("accident");
+        }
+
+        // Timestamp
+        const ts = new Date(data.timestamp);
+        document.getElementById("timestamp").textContent =
+          "Last updated: " + ts.toLocaleTimeString();
+
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
+    }
+
+    // Fetch every 3 seconds
+    fetchData();
+    setInterval(fetchData, 3000);
+  </script>
 
 </body>
+
 </html>
